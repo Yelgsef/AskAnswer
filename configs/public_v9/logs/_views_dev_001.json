@@ -1,0 +1,8 @@
+{
+ "agree": 7,
+ "k": 8,
+ "used": true,
+ "sql": "WITH normalized_products AS (\n    SELECT \n        \"Mã hàng hóa\",\n        \"Tên hàng hóa\",\n        \"Nhóm hàng hóa\",\n        LOWER(TRIM(REGEXP_REPLACE(\"Tên hàng hóa\", '\\s+', ' ', 'g'))) AS norm_name\n    FROM \"danh_sach_hang_hoa\"\n)\nSELECT \n    s.\"Mã đơn hàng\" AS order_id,\n    CAST(s.\"Ngày\" AS DATE) AS order_date,\n    s.\"Ngày\" AS order_ts,\n    COALESCE(p.\"Mã hàng hóa\", NULL) AS product_code,\n    COALESCE(p.\"Nhóm hàng hóa\", NULL) AS product_group,\n    COALESCE(p.\"Tên hàng hóa\", s.\"Tên hàng hóa\") AS product_name,\n    s.\"Số lượng quy đổi\" AS qty,\n    s.\"Đơn vị tính\" AS unit,\n    s.\"Thành tiền\" AS amount,\n    NULL AS customer_id,\n    CASE \n        WHEN LOWER(TRIM(s.\"Khách hàng\")) IN ('khách lẻ', 'kl', 'lẻ', 'vãng lai', '') THEN NULL \n        ELSE s.\"Khách hàng\" \n    END AS customer_name,\n    NULL AS staff,\n    NULL AS channel,\n    NULL AS payment,\n    CASE \n        WHEN s.\"Trạng thái\" IN ('Đã hủy đơn', 'khách hủy') THEN TRUE \n        ELSE FALSE \n    END AS is_cancelled,\n    CASE \n        WHEN s.\"Trạng thái\" IN ('Đã hoàn hàng', 'hàng trả về') THEN TRUE \n        ELSE FALSE \n    END AS is_returned,\n    'item' AS line_kind\nFROM \"so_chi_tiet_ban_hang\" s\nLEFT JOIN normalized_products p \n    ON LOWER(TRIM(REGEXP_REPLACE(s.\"Tên hàng hóa\", '\\s+', ' ', 'g'))) = p.norm_name",
+ "errors": [],
+ "drafts": []
+}

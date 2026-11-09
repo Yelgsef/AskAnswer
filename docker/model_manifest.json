@@ -1,0 +1,32 @@
+{
+  "repo_id": "Qwen/Qwen3.5-9B",
+  "revision": "c202236235762e1c871ad0ccb60c8ee5ba337b9a",
+  "revision_date_utc": "2026-03-02T00:51:43Z",
+  "license": "Apache-2.0",
+  "safetensors_total_parameters": 9653104368,
+  "parameter_source": "https://huggingface.co/api/models/Qwen/Qwen3.5-9B",
+  "commit_source": "https://huggingface.co/api/models/Qwen/Qwen3.5-9B/commits/main",
+  "inference_models": 1,
+  "embeddings_or_rerankers": 0,
+  "lora_adapter": "adapters/sql_rft_v3 (in the image: /code/models/lora)",
+  "lora_adapter_parameters": 43278336,
+  "total_parameters_with_adapter": 9696382704,
+  "vllm": "0.32.0",
+  "dtype": "bfloat16 weights, fp8 online quantization",
+  "enable_thinking": "hybrid: thinking for per-shop view and debt drafts (K=8, 6144 tok), for low-agreement questions (conf<0.75) and for every debt question on a shop with the debt layer (4 samples, 16384 tok); non-thinking for the 8 main SQL samples",
+  "temperature": "0.7 SQL samples; 0.6 / top_k 20 thinking; greedy repairs",
+  "seed": 0,
+  "language_model_only": true,
+  "gpu_validated": false,
+  "note": "Single inference model with one LoRA adapter (v3, same rank and modules as v2), 9.70B params (<= 15B total). fp8 online quant + fp8 KV cache. Run on 1x RTX PRO 4000 Blackwell 24GB outside Docker; the image and RTX 5090 timing are not validated yet. Layout and logs follow zac2026_DataMate_docker_guideline_final.pdf.",
+  "base_model_path_in_image": "/code/models/Qwen3.5-9B",
+  "training_only_models": [
+    {
+      "repo_id": "avyukth/Qwen3.8-27B-AWQ-INT4",
+      "revision": "5a2ee524cbc9f3ac5df12729ecf0c4b57f311192",
+      "created": "2026-08-15",
+      "license": "apache-2.0",
+      "use": "data generation on train only, not in the image"
+    }
+  ]
+}

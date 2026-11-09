@@ -1,0 +1,40 @@
+{
+ "agree": 4,
+ "k": 16,
+ "used": true,
+ "sqls": [
+  "SELECT DISTINCT\n  \"Đơn số\" AS order_id,\n  CAST(\"Ngày HĐ\" AS DATE) AS order_date,\n  \"Mã khách\" AS customer_id,\n  CASE WHEN \"Mã khách\" IS NOT NULL THEN \"Khách hàng (tên)\" ELSE NULL END AS customer_name,\n  \"Tổng thanh toán\" AS total_due,\n  \"_don_huy\" = TRUE OR \"Trạng thái giao\" = 'Đã hủy đơn' AS is_cancelled,\n  \"Hình thức thanh toán\" = 'Thu hộ (COD)' AS no_debt,\n  \"Hình thức thanh toán\" = 'Ghi nợ' AS is_credit\nFROM \"banhang_tonghop_banhang_all\"\nORDER BY \"Đơn số\"",
+  "SELECT\n  p.\"Ma don\" AS order_id,\n  CAST(p.\"Ngày TT\" AS DATE) AS pay_date,\n  p.\"Tiền thu\" AS amount\nFROM \"banhang_phieuthu\" p"
+ ],
+ "checked": [
+  "None",
+  "None",
+  "(62839, 8796008600, 99723, 8600065402, 42, 3577698)",
+  "None",
+  "(62839, 4572279700, 62580, 4472510474, 42, 1752626)",
+  "None",
+  "None",
+  "(62839, 4572279700, 62580, 4472510474, 42, 1752626)",
+  "(62839, 4572279700, 62580, 4472510474, 42, 1752626)",
+  "None",
+  "None",
+  "None",
+  "None",
+  "None",
+  "None",
+  "(62839, 4572279700, 62580, 4472510474, 42, 1752626)"
+ ],
+ "errors": [
+  "Binder Error: column \"Ngày HĐ\" must appear in the GROUP BY clause or must be part of an aggregate function.\nEither add it to the GROUP BY list, or use ANY_VALUE(\"Ngày HĐ\") if the exact value of \"Ngày HĐ\" is not important.\n\nLINE 3:   CAST(\"Ngày HĐ\" AS DATE) AS order_date,\n               ^^^^^^^^^",
+  "61505 of 62839 orders are paid more than total_due: total_due or the payment join is wrong",
+  "61505 of 62839 orders are paid more than total_due: total_due or the payment join is wrong",
+  "Binder Error: column \"Ngày HĐ\" must appear in the GROUP BY clause or must be part of an aggregate function.\nEither add it to the GROUP BY list, or use ANY_VALUE(\"Ngày HĐ\") if the exact value of \"Ngày HĐ\" is not important.\n\nLINE 3:   CAST(\"Ngày HĐ\" AS DATE) AS \"order_date\",\n               ^^^^^^^^^",
+  "Binder Error: column \"Mã khách\" must appear in the GROUP BY clause or must be part of an aggregate function.\nEither add it to the GROUP BY list, or use ANY_VALUE(\"Mã khách\") if the exact value of \"Mã khách\" is not important.\n\nLINE 4:     CASE WHEN \"Mã khách\" IS NULL OR \"Khách hàng (tên)\" IN ('Khách ",
+  "61505 of 62839 orders are paid more than total_due: total_due or the payment join is wrong",
+  "total_due is NULL or negative on 27484 of 62839 orders",
+  "no order owes anything at the last order date 2026-08-21: check total_due, no_debt and the payments",
+  "61505 of 62839 orders are paid more than total_due: total_due or the payment join is wrong",
+  "61505 of 62839 orders are paid more than total_due: total_due or the payment join is wrong",
+  "Binder Error: Values list \"o\" does not have a column named \"Mã khách\"\n\nLINE 35:         WHEN o.\"Mã khách\" IS NULL AND TRIM(LOWER(o.\"Khách hàng (tên)...\n                      ^^^^^^^^^^^^"
+ ]
+}

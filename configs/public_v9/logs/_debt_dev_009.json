@@ -1,0 +1,20 @@
+{
+ "agree": 2,
+ "k": 8,
+ "used": true,
+ "sqls": [
+  "SELECT\n  \"Mã hóa đơn\" AS order_id,\n  DATE(\"Ngày tháng\") AS order_date,\n  NULL AS customer_id,\n  NULL AS customer_name,\n  \"TongTien\" AS total_due,\n  (\"Trạng thái đơn\" = 'hủy đơn') AS is_cancelled,\n  FALSE AS no_debt,\n  (\"Nợ\" > 0) AS is_credit\nFROM \"danh_sach_hoa_don\"",
+  "SELECT\n  \"Mã hóa đơn\" AS order_id,\n  NULL AS pay_date,\n  \"Đã thu\" AS amount\nFROM \"danh_sach_hoa_don\"\nWHERE \"Đã thu\" > 0"
+ ],
+ "checked": [
+  "None",
+  "None",
+  "None",
+  "(22490, 10328216500, 21786, 10007832245, 61, 17644755)",
+  "None",
+  "none",
+  "(22490, 10328216500, 21786, 10007832245, 61, 17644755)",
+  "None"
+ ],
+ "errors": []
+}

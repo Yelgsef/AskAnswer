@@ -1,0 +1,9 @@
+# The environment that trained LoRA v1 and v2 (separate from the inference venv)
+unsloth==2026.10.11
+torch==2.14.1
+transformers==5.17.0
+peft==0.21.2
+trl==1.15.0
+accelerate==1.15.0
+bitsandbytes==0.50.2
+datasets==4.8.5

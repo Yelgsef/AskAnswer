@@ -1,0 +1,8 @@
+{
+ "agree": 5,
+ "k": 8,
+ "used": true,
+ "sql": "SELECT\n  strftime(\"Ngày\", '%Y%m%d') || '-' || CAST(ROW_NUMBER() OVER (ORDER BY \"Ngày\", \"Xe\", \"Làm gì\", \"Thợ\") AS VARCHAR) AS order_id,\n  CAST(\"Ngày\" AS DATE) AS order_date,\n  \"Ngày\" AS order_ts,\n  NULL::VARCHAR AS product_code,\n  NULL::VARCHAR AS product_group,\n  \"Làm gì\" AS product_name,\n  1::BIGINT AS qty,\n  NULL::VARCHAR AS unit,\n  \"Tiền\" AS amount,\n  NULL::VARCHAR AS customer_id,\n  NULL::VARCHAR AS customer_name,\n  \"Thợ\" AS staff,\n  NULL::VARCHAR AS channel,\n  NULL::VARCHAR AS payment,\n  \"_huy\" AS is_cancelled,\n  \"_tra\" AS is_returned,\n  'service' AS line_kind\nFROM \"sosuaxe_all\"",
+ "errors": [],
+ "drafts": []
+}

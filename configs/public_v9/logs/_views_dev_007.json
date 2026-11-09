@@ -1,0 +1,8 @@
+{
+ "agree": 7,
+ "k": 8,
+ "used": true,
+ "sql": "SELECT\n  \"c\".\"Mã bill\" AS \"order_id\",\n  CAST(\"c\".\"Ngày giao dịch\" AS DATE) AS \"order_date\",\n  CAST(\"c\".\"Giờ bán\" AS TIMESTAMP) AS \"order_ts\",\n  \"c\".\"Mã vạch\" AS \"product_code\",\n  COALESCE(\"d\".\"Nhóm\", \"c\".\"Phân loại\") AS \"product_group\",\n  COALESCE(\"d\".\"Hàng bán\", \"c\".\"Mặt hàng\") AS \"product_name\",\n  \"c\".\"Số lượng lẻ\" AS \"qty\",\n  \"d\".\"ĐVT\" AS \"unit\",\n  \"c\".\"Thành tiền\" AS \"amount\",\n  \"c\".\"Mã khách mua\" AS \"customer_id\",\n  CASE\n    WHEN LOWER(TRIM(\"c\".\"Họ tên khách\")) IN ('khách lẻ', 'lẻ', 'kl', 'vãng lai', '') THEN NULL\n    ELSE \"c\".\"Họ tên khách\"\n  END AS \"customer_name\",\n  \"c\".\"Nhân viên bán\" AS \"staff\",\n  \"c\".\"Nguồn\" AS \"channel\",\n  NULL AS \"payment\",\n  CASE WHEN \"c\".\"Tiến độ\" = 'Đã hủy đơn' THEN TRUE ELSE FALSE END AS \"is_cancelled\",\n  CASE WHEN \"c\".\"Tiến độ\" = 'Đã trả hàng' THEN TRUE ELSE FALSE END AS \"is_returned\",\n  CASE\n    WHEN \"c\".\"Mặt hàng\" = 'Phí phục vụ' OR \"c\".\"Phân loại\" = 'phí dịch vụ' THEN 'service'\n    ELSE 'item'\n  END AS \"line_kind\"\nFROM \"chi_tiet_hoa_don\" AS \"c\"\nLEFT JOIN \"danh_muc_hang\" AS \"d\" ON \"c\".\"Mã vạch\" = \"d\".\"Mã SKU\"",
+ "errors": [],
+ "drafts": []
+}

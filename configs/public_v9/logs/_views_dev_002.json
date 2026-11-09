@@ -1,0 +1,8 @@
+{
+ "agree": 7,
+ "k": 8,
+ "used": true,
+ "sql": "SELECT\n  b.\"Mã đơn hàng\" AS order_id,\n  CAST(b.\"Ngày đặt hàng\" AS DATE) AS order_date,\n  b.\"Ngày đặt hàng\" AS order_ts,\n  NULL::VARCHAR AS product_code,\n  NULL::VARCHAR AS product_group,\n  b.\"Tên sản phẩm\" AS product_name,\n  CASE\n    WHEN d.\"Tên sản phẩm\" IS NOT NULL AND b.\"Đơn vị tính\" = d.\"Đơn vị quy đổi\"\n    THEN b.\"Số lượng sản phẩm\" * d.\"Tỉ lệ quy đổi\"\n    ELSE b.\"Số lượng sản phẩm\"\n  END AS qty,\n  b.\"Đơn vị tính\" AS unit,\n  b.\"Tổng tiền\" AS amount,\n  NULL::VARCHAR AS customer_id,\n  CASE\n    WHEN LOWER(TRIM(b.\"Tên khách hàng\")) IN ('khách lẻ', 'lẻ', 'kl', '') THEN NULL\n    ELSE b.\"Tên khách hàng\"\n  END AS customer_name,\n  NULL::VARCHAR AS staff,\n  NULL::VARCHAR AS channel,\n  NULL::VARCHAR AS payment,\n  CASE\n    WHEN b.\"Trạng thái đơn hàng\" = 'Đã hủy' THEN TRUE\n    ELSE FALSE\n  END AS is_cancelled,\n  CASE\n    WHEN b.\"Trạng thái đơn hàng\" = 'Đã hoàn hàng' THEN TRUE\n    ELSE FALSE\n  END AS is_returned,\n  'item' AS line_kind\nFROM \"banhang_all\" b\nLEFT JOIN \"danhsachquydoi\" d ON b.\"Tên sản phẩm\" = d.\"Tên sản phẩm\"",
+ "errors": [],
+ "drafts": []
+}

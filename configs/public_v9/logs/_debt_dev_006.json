@@ -1,0 +1,20 @@
+{
+ "agree": 3,
+ "k": 8,
+ "used": true,
+ "sqls": [
+  "SELECT \n    d.MaHoaDon AS order_id,\n    CAST(d.NgayLap AS DATE) AS order_date,\n    d.MaKhachHang AS customer_id,\n    COALESCE(k.TenGoi, NULL) AS customer_name,\n    d.TongThanhToan AS total_due,\n    (d.TinhTrang = 'cancelled' OR d._huy = true) AS is_cancelled,\n    (d.PhuongThucTT = 'cod' OR d.TinhTrang IN ('cancelled', 'returned') OR d._huy = true OR d._tra = true) AS no_debt,\n    (d.PhuongThucTT = 'debt') AS is_credit\nFROM \"don_hang\" d\nLEFT JOIN \"khach_hang\" k ON d.MaKhachHang = k.MaKhachHang\nWHERE d.IDCuaHang = 'dev_006'",
+  "SELECT \n    t.MaHoaDon AS order_id,\n    CAST(t.NgayGioThu AS DATE) AS pay_date,\n    t.SoTienThu AS amount\nFROM \"thanh_toan\" t\nWHERE t.IDCuaHang = 'dev_006'"
+ ],
+ "checked": [
+  "(37833, 4278447700, 37939, 4230218400, 25, 3649600)",
+  "(37833, 4278447700, 37939, 4230218400, 12, 2029700)",
+  "(37833, 4278447700, 37939, 4230218400, 12, 2029700)",
+  "(436, 60782700, 950, 58753000, 12, 2029700)",
+  "None",
+  "(436, 60782700, 950, 58753000, 12, 2029700)",
+  "None",
+  "(37833, 4278447700, 37939, 4230218400, 12, 2029700)"
+ ],
+ "errors": []
+}

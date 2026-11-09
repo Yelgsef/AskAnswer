@@ -1,0 +1,20 @@
+{
+ "agree": 2,
+ "k": 8,
+ "used": true,
+ "sqls": [
+  "SELECT\n  d.\"Số CT\" AS order_id,\n  CAST(d.\"Date\" AS DATE) AS order_date,\n  d.\"Mã thẻ\" AS customer_id,\n  kh.\"Khách lẻ/sỉ\" AS customer_name,\n  d.\"Thành tiền\" AS total_due,\n  (d.\"Xử lý\" = 'cancelled' OR d._huy) AS is_cancelled,\n  (d.\"Phương thức TT\" != 'debt') AS no_debt,\n  (d.\"Phương thức TT\" = 'debt') AS is_credit\nFROM \"don_hang\" d\nLEFT JOIN \"khach_hang\" kh ON d.\"Mã thẻ\" = kh.\"Mã khách\"",
+  "SELECT\n  t.\"Mã đơn\" AS order_id,\n  CAST(t.\"Ngay thu\" AS DATE) AS pay_date,\n  t.\"So tien\" AS amount\nFROM \"thanh_toan\" t"
+ ],
+ "checked": [
+  "None",
+  "None",
+  "None",
+  "(25191, 11711864000, 26246, 11319389827, 57, 20715673)",
+  "None",
+  "None",
+  "None",
+  "(25191, 11711864000, 26246, 11319389827, 57, 20715673)"
+ ],
+ "errors": []
+}

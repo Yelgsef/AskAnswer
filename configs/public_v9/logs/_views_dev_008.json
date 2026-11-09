@@ -1,0 +1,8 @@
+{
+ "agree": 8,
+ "k": 8,
+ "used": true,
+ "sql": "WITH sales AS (\n  SELECT\n    l.\"Bill\" AS order_id,\n    DATE(l.\"Ngày xuất\") AS order_date,\n    l.\"Giờ bán\" AS order_ts,\n    l.\"Ma hang\" AS product_code,\n    c.\"Loại hàng\" AS product_group,\n    COALESCE(c.\"Hàng\", l.\"Tên hàng\") AS product_name,\n    l.\"SL lẻ\" AS qty,\n    c.\"DVT\" AS unit,\n    l.\"Thành tiền\" AS amount,\n    l.\"Mã người mua\" AS customer_id,\n    CASE\n      WHEN LOWER(TRIM(l.\"Khách\")) IN ('khách lẻ', 'kl', 'lẻ', 'vãng lai', '') THEN NULL\n      ELSE l.\"Khách\"\n    END AS customer_name,\n    l.\"Nhân viên bán\" AS staff,\n    l.\"Kênh bán\" AS channel,\n    l.\"Thanh toán bằng\" AS payment,\n    CASE\n      WHEN l.\"TT đơn\" IN ('hủy đơn', 'khách hủy') THEN TRUE\n      ELSE FALSE\n    END AS is_cancelled,\n    CASE\n      WHEN l.\"TT đơn\" IN ('Hoàn trả', 'trả hàng', 'Đã hoàn hàng') THEN TRUE\n      ELSE FALSE\n    END AS is_returned,\n    CASE\n      WHEN l.\"Tên hàng\" = 'Phí phục vụ' THEN 'service'\n      ELSE 'item'\n    END AS line_kind\n  FROM \"chitiethoadon_1_all\" l\n  LEFT JOIN \"danhmuchang\" c ON l.\"Ma hang\" = c.\"Mã sản phẩm bán\"\n)\nSELECT * FROM sales",
+ "errors": [],
+ "drafts": []
+}

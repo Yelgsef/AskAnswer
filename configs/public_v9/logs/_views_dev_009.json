@@ -1,0 +1,8 @@
+{
+ "agree": 7,
+ "k": 8,
+ "used": true,
+ "sql": "SELECT\n  strftime('%Y-%m-%d', \"Ngày tháng\") || '-' || \"Mã hóa đơn\" AS order_id,\n  CAST(\"Ngày tháng\" AS DATE) AS order_date,\n  \"Ngày tháng\" AS order_ts,\n  NULL::VARCHAR AS product_code,\n  NULL::VARCHAR AS product_group,\n  NULL::VARCHAR AS product_name,\n  NULL::BIGINT AS qty,\n  NULL::VARCHAR AS unit,\n  \"Giá trị hàng\" AS amount,\n  NULL::VARCHAR AS customer_id,\n  CASE\n    WHEN LOWER(TRIM(\"Đối tác\")) IN ('khách lẻ', 'kl', 'lẻ', 'vãng lai', '') THEN NULL\n    ELSE \"Đối tác\"\n  END AS customer_name,\n  NULL::VARCHAR AS staff,\n  NULL::VARCHAR AS channel,\n  NULL::VARCHAR AS payment,\n  (\"Trạng thái đơn\" = 'hủy đơn')::BOOLEAN AS is_cancelled,\n  (\"Trạng thái đơn\" = 'trả hàng')::BOOLEAN AS is_returned,\n  'item'::VARCHAR AS line_kind\nFROM \"danh_sach_hoa_don\"",
+ "errors": [],
+ "drafts": []
+}
