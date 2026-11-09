@@ -1,6 +1,7 @@
 # Competition data (regulations 4.3: stays with the team), model weights, run outputs
 data/
 models/
+*.safetensors
 runs/
 outputs/
 
