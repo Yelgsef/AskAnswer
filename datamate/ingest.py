@@ -1,10 +1,13 @@
 """Load one business (CSV/XLSX/SQLite) into DuckDB with typed, named tables and a schema prompt."""
 import csv
 import json
+import math
 import re
 import sqlite3
 import unicodedata
 from collections import defaultdict
+from datetime import date, datetime, time
+from decimal import Decimal
 from pathlib import Path
 
 import duckdb
@@ -377,6 +380,173 @@ def schema_text(meta):
                 tag = "values" if d <= 25 else f"{d} distinct, e.g."
                 out.append(f"  {quote(col)} {typ}  {tag} {json.dumps([str(v)[:60] for v in vals], ensure_ascii=False)}")
     return "\n".join(out)
+
+
+_SAMPLE_TABLE_HINTS = ("ban_hang", "sales", "sale", "doanh_thu", "don_hang", "order", "hoa_don", "invoice", "chi_tiet",
+                       "detail", "line", "san_pham", "hang_hoa", "product", "catalog", "khach", "customer", "don_vi", "unit",
+                       "status", "trang_thai", "quy_doi", "conversion")
+_SAMPLE_IMPORTANT = re.compile(r"(^|_)(ma|id|code|so|don|hoa|order|date|ngay|time|thoi_gian|qty|quantity|sl|so_luong|amount|price|gia|tien|total|tong|discount|giam|chiet|unit|dvt|don_vi|product|san_pham|hang|item|customer|khach|status|trang|note|ghi_chu)(_|$)")
+_SAMPLE_NUMERIC = re.compile(r"(^|_)(qty|quantity|sl|so_luong|amount|price|gia|tien|total|tong|discount|giam|chiet|doanh_thu)(_|$)")
+
+
+def _sample_alias(base, columns):
+    alias = base
+    i = 2
+    while alias in columns:
+        alias = f"{base}_{i}"
+        i += 1
+    return alias
+
+
+def _sample_value(v, max_chars):
+    if v is None:
+        return "NULL"
+    if isinstance(v, bool):
+        return "true" if v else "false"
+    if isinstance(v, (datetime, date, time)):
+        s = v.isoformat()
+        return json.dumps(s, ensure_ascii=False)
+    if isinstance(v, float) and math.isnan(v):
+        return "NULL"
+    try:
+        missing = pd.isna(v)
+        if isinstance(missing, bool) and missing:
+            return "NULL"
+    except (TypeError, ValueError):
+        pass
+    if isinstance(v, (int, float, Decimal)):
+        s = str(v)
+        return s[:max_chars]
+    s = str(v)[:max_chars]
+    return json.dumps(s, ensure_ascii=False)
+
+
+def _sample_table_score(table):
+    name = ckey(table.get("name", ""))
+    score = sum(2 for hint in _SAMPLE_TABLE_HINTS if hint in name)
+    for item in table.get("columns", ()):
+        if not item:
+            continue
+        score += 1 if _SAMPLE_IMPORTANT.search(ckey(item[0])) else 0
+    return score
+
+
+def _sample_rows(db, table, max_rows):
+    """Select bounded, deterministic row candidates; duplicate records are indistinguishable by design."""
+    name = table["name"]
+    info = [item for item in table.get("columns", ()) if item and item[0] is not None]
+    if not info:
+        info = [(r[0], r[1]) for r in db.execute(f"DESCRIBE {quote(name)}").fetchall()]
+    columns = [str(item[0]) for item in info]
+    if not columns:
+        return []
+    qcols = [quote(c) for c in columns]
+    col_keys = {c: ckey(c) for c in columns}
+    helper = _sample_alias("__datamate_sample_index", set(columns))
+    interesting_helper = _sample_alias("__datamate_interesting_index", set(columns) | {helper})
+    kind_helper = _sample_alias("__datamate_sample_kind", set(columns) | {helper, interesting_helper})
+    count_helpers = {}
+    rare_cols = [c for c in columns if re.search(r"(^|_)(unit|dvt|don_vi|status|trang_thai|tinh_trang|loai)(_|$)", col_keys[c])]
+    for c in rare_cols:
+        alias = _sample_alias("__datamate_count_" + norm(c), set(columns) | {helper, interesting_helper, *count_helpers.values()})
+        count_helpers[c] = alias
+
+    important = [c for c in columns if _SAMPLE_IMPORTANT.search(col_keys[c])]
+    status_cols = [c for c in columns if re.search(STATUS_COL, col_keys[c]) or re.search(r"(^|_)(state|loai)(_|$)", col_keys[c])]
+    numeric_cols = [c for c in columns if _SAMPLE_NUMERIC.search(col_keys[c])]
+    discount_cols = [c for c in columns if re.search(r"(^|_)(discount|giam|chiet|khuyen_mai|voucher)(_|$)", col_keys[c])]
+    q = lambda c: quote(c)
+    null_expr = " OR ".join(f"{q(c)} IS NULL" for c in important) or "FALSE"
+    status_expr = " OR ".join(
+        f"lower(CAST({q(c)} AS VARCHAR)) LIKE '%huy%' OR lower(CAST({q(c)} AS VARCHAR)) LIKE '%hủy%' OR "
+        f"lower(CAST({q(c)} AS VARCHAR)) LIKE '%huỷ%' OR lower(CAST({q(c)} AS VARCHAR)) LIKE '%cancel%' OR "
+        f"lower(CAST({q(c)} AS VARCHAR)) LIKE '%tra%' OR lower(CAST({q(c)} AS VARCHAR)) LIKE '%trả%' OR "
+        f"lower(CAST({q(c)} AS VARCHAR)) LIKE '%return%' OR lower(CAST({q(c)} AS VARCHAR)) LIKE '%hoan%' OR "
+        f"lower(CAST({q(c)} AS VARCHAR)) LIKE '%khong giao%'"
+        for c in status_cols
+    ) or "FALSE"
+    negative_expr = " OR ".join(f"TRY_CAST({q(c)} AS DOUBLE) < 0" for c in numeric_cols) or "FALSE"
+    discount_expr = " OR ".join(
+        f"NULLIF(trim(CAST({q(c)} AS VARCHAR)), '') IS NOT NULL AND COALESCE(TRY_CAST({q(c)} AS DOUBLE), 1) <> 0" for c in discount_cols
+    ) or "FALSE"
+    rare_limit = max(3, int(table.get("rows") or 0) // 10)
+    rare_expr = " OR ".join(f"{q(c)} IS NOT NULL AND {q(alias)} <= {rare_limit}" for c, alias in count_helpers.items()) or "FALSE"
+    interesting_expr = f"({null_expr}) OR ({status_expr}) OR ({negative_expr}) OR ({discount_expr}) OR ({rare_expr})"
+    priority_expr = f"CASE WHEN {null_expr} THEN 0 WHEN {status_expr} THEN 1 WHEN {negative_expr} THEN 2 WHEN {discount_expr} THEN 3 WHEN {rare_expr} THEN 4 ELSE 5 END"
+
+    # No generic schema guarantees a unique key. Sorting by every value is the deterministic fallback;
+    # identical rows can still not be distinguished, which is harmless because they serialize identically.
+    order_terms = [f"CASE WHEN {q(c)} IS NULL THEN 0 ELSE 1 END, CAST({q(c)} AS VARCHAR)" for c in columns]
+    order_by = ", ".join(order_terms)
+    head_n = min(4, max_rows)
+    dist_n = min(3, max_rows - head_n)
+    interesting_n = max_rows - head_n - dist_n
+    row_count = table.get("rows")
+    try:
+        row_count = int(row_count)
+    except (TypeError, ValueError):
+        row_count = int(db.execute(f"SELECT count(*) FROM {quote(name)}").fetchone()[0])
+    if row_count <= 0:
+        return []
+    positions = []
+    for p in (max(1, row_count // 2), max(1, (3 * row_count) // 4), row_count):
+        if p not in positions:
+            positions.append(p)
+    positions = positions[:dist_n]
+    base = f"SELECT row_number() OVER (ORDER BY {order_by}) AS {q(helper)}, {', '.join(qcols)} FROM {quote(name)}"
+    marked = base
+    if count_helpers:
+        marked = f"SELECT *, {', '.join(f'count(*) OVER (PARTITION BY {q(c)}) AS {q(a)}' for c, a in count_helpers.items())} FROM ({base}) AS base_rows"
+    interesting_limit = max(interesting_n * 3, interesting_n)
+    wanted = [f"SELECT 'head' AS {q(kind_helper)}, {q(helper)} AS {q(interesting_helper)}, {', '.join(qcols)} FROM marked WHERE {q(helper)} <= {head_n}"] if head_n else []
+    if positions:
+        wanted.append(f"SELECT 'distributed' AS {q(kind_helper)}, {q(helper)} AS {q(interesting_helper)}, {', '.join(qcols)} FROM marked WHERE {q(helper)} IN ({', '.join(map(str, positions))})")
+    if interesting_limit:
+        wanted.append(f"SELECT 'interesting' AS {q(kind_helper)}, {q(helper)} AS {q(interesting_helper)}, {', '.join(qcols)} FROM interesting WHERE {q(interesting_helper)} <= {interesting_limit}")
+    if not wanted:
+        return []
+    sql = f"""WITH base AS ({base}), marked AS ({marked}), interesting AS (
+        SELECT *, row_number() OVER (ORDER BY {priority_expr}, {q(helper)}) AS {q(interesting_helper)}
+        FROM marked WHERE {interesting_expr}
+    ), wanted AS ({' UNION ALL '.join(wanted)})
+    SELECT {q(kind_helper)}, {q(interesting_helper)}, {', '.join(qcols)} FROM wanted
+    ORDER BY CASE {q(kind_helper)} WHEN 'head' THEN 0 WHEN 'distributed' THEN 1 ELSE 2 END, {q(interesting_helper)}"""
+    return db.execute(sql).fetchall()
+
+
+def sample_text(db, meta, max_rows=10, max_cell_chars=120, max_total_chars=16000):
+    """Format bounded representative rows from the visible ingested tables for a view-drafting prompt."""
+    max_rows, max_cell_chars, max_total_chars = int(max_rows), max(1, int(max_cell_chars)), int(max_total_chars)
+    if max_rows <= 0 or max_total_chars <= 0:
+        return ""
+    all_tables = [t for t in meta.get("tables", ()) if ckey(t.get("name", "")) != "calendar"]
+    physical_bases = {union_key(t.get("name", "")) for t in all_tables if not str(t.get("source", "")).startswith("UNION of ")}
+    tables = [t for t in all_tables if not (str(t.get("source", "")).startswith("UNION of ") and
+                                            t.get("name", "").endswith("_all") and
+                                            t.get("name", "")[:-4] in physical_bases)]
+    tables.sort(key=lambda t: (-_sample_table_score(t), ckey(t.get("name", "")), str(t.get("name", ""))))
+    blocks = []
+    for table in tables:
+        name = table.get("name")
+        if not name:
+            continue
+        columns = [str(item[0]) for item in table.get("columns", ()) if item]
+        lines = [f"TABLE {quote(name)}" + (f" (source: {table.get('source')})" if table.get("source") else ""),
+                 "Columns: " + ", ".join(quote(c) for c in columns), "Rows:"]
+        try:
+            rows = _sample_rows(db, table, max_rows)
+            seen = set()
+            for record in rows:
+                values = tuple(_sample_value(v, max_cell_chars) for v in record[2:])
+                if values in seen:
+                    continue
+                seen.add(values)
+                lines.append("[" + ", ".join(values) + "]")
+        except Exception:
+            lines.append("[sampling unavailable]")
+        blocks.append("\n".join(lines))
+    text = "\n\n".join(blocks)
+    return text[:max_total_chars]
 
 
 if __name__ == "__main__":

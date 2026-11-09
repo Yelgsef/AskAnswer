@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 
 from . import debts, fewshot, views
 from .hints import DEBT_WORDS, data_span, outside, question_hints
-from .ingest import entity_hits, load_business, norm, profile, schema_text
+from .ingest import entity_hits, load_business, norm, profile, sample_text, schema_text
 from .prompts import NOTES, SYSTEM, SYSTEM_ALT, chat, repair_hint
 from .sqlexec import execute, parse
 from .submission import merge_shards, write_submission
@@ -96,10 +96,13 @@ class Pipeline:
         drafted = [b for b in loaded if b not in self.vfixed]  # shops without reused views get fresh drafts
         if a.views != "llm" or not drafted:
             return
+        samples = {b: sample_text(loaded[b][0], loaded[b][1], max_rows=a.view_sample_rows)
+                   for b in drafted} if getattr(a, "view_sample_rows", 0) > 0 else {}
 
         def view_round(shops, seed):  # all shops in one batch (GPU stays full)
             vchats = [[{"role": "system", "content": views.VIEW_SYSTEM + "\n\nRULEBOOK:\n" + self.rulebook},
-                       {"role": "user", "content": "README:\n" + loaded[b][1]["readme"] + "\n\nSCHEMA:\n" + schema_text(loaded[b][1])}] for b in shops]
+                       {"role": "user", "content": "README:\n" + loaded[b][1]["readme"] + "\n\nSCHEMA:\n" + schema_text(loaded[b][1])
+                           + ("\n\nREPRESENTATIVE ROWS:\n" + samples[b] if samples.get(b) else "")}] for b in shops]
             vsp = eng.params(n=a.k, temperature=0.6 if a.view_think else a.temperature, top_p=0.95, top_k=20,
                              max_tokens=a.view_think + 2048, seed=seed)
             vouts = eng.chat(vchats, vsp, thinking=bool(a.view_think))

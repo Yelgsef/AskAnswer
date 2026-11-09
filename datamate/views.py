@@ -10,6 +10,7 @@ import threading
 from collections import Counter
 
 VIEW_SYSTEM = """You map ONE shop's raw tables (DuckDB) to a canonical sales table. Read README, SCHEMA and RULEBOOK carefully: they say which table holds the sales, which column is the order id, the date, the quantity, the line amount, the status.
+When REPRESENTATIVE ROWS are provided, use them to see relationships within records, distinguish order headers from lines, and inspect join keys, statuses, units and amount calculations. README and RULEBOOK are authoritative; samples are incomplete evidence, so do not infer that an unseen status, unit or category is absent, hard-code sampled values, or assume the sample is the full dataset. The generated SELECT must work over the entire data.
 Write ONE read-only DuckDB SELECT (WITH allowed) returning one row per sold line (one row per order or ticket if the shop records no lines), with exactly these columns:
   order_id      the order / invoice / ticket id (all lines of one order share it; one id = one order in the whole data: when the id is a running number that restarts per day/sheet/file, combine it with the date, e.g. strftime(date, '%Y%m%d') || '-' || id)
   order_date    DATE the order was placed (rulebook: the order date decides the period)

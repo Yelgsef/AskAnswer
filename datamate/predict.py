@@ -33,6 +33,7 @@ def parse_args(argv=None):
     p.add_argument("--canon-names", action="store_true", help="write every name of a shop one way when loading it (ingest.canon_spellings)")
     p.add_argument("--views", choices=["llm", "none"], default="llm", help="canonical sales tables written by the LLM per shop (views.py), or none")
     p.add_argument("--view-think", type=int, default=6144, help="thinking-mode token budget for the per-shop view stage (0 = no thinking)")
+    p.add_argument("--view-sample-rows", type=int, default=0, help="representative rows per selected source table for view drafts (0 disables)")
     p.add_argument("--views-from", type=Path, help="reuse the view SELECTs an earlier run chose (its logs/_views_<shop>.json) instead of drafting")
     p.add_argument("--repairs", type=int, default=2, help="greedy repair turns for a failed sample (thinking samples included)")
     p.add_argument("--lora-thinking", action="store_true", help="also use --lora for the thinking samples")
