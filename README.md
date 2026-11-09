@@ -336,3 +336,4 @@ theo license Apache-2.0 của Qwen. Dữ liệu của BTC không nằm trong rep
 - [Đề bài](docs/challenge.md)
 - [Ghi chú dữ liệu](docs/data-notes.md)
 - [Lịch sử điểm](docs/leaderboard.md)
+- [Repo baseline gốc](https://github.com/hugebenevolence/zalo-ai-challenge-datamate-26)
