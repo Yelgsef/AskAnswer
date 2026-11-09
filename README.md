@@ -140,6 +140,9 @@ File cần nộp: `runs/public/submission.jsonl`. Log và trace từng câu nằ
 
 `python -m datamate.predict --help` liệt kê mọi flag của pipeline.
 
+Dynamic business macros are disabled by default. For an optional comparison run, pass `--dynamic-macros`; tune with
+`--macro-max-count`, `--macro-repairs` and `--macro-max-context-chars`. The submitted defaults in `scripts/flags.sh` and Docker are unchanged.
+
 > Mỗi lượt chạy sinh mẫu mới, nên cùng một cấu hình có thể lệch khoảng ±1 điểm public. Muốn so hai cấu hình thì so hai lượt
 > chạy đầy đủ, không ghép kết quả từ nhiều lượt.
 
@@ -281,6 +284,9 @@ datamate/                 package inference (python -m datamate.predict)
   llm.py                  lớp bọc vLLM (file duy nhất import vllm)
   ingest.py               nạp và chuẩn hóa dữ liệu shop, profile cột
   views.py, debts.py      bảng chuẩn v_sales / v_orders và lớp công nợ: soạn, kiểm tra, chọn, mô tả
+  macros.py               lập kế hoạch, sinh và sửa macro nghiệp vụ tùy theo từng business
+  macro_validator.py      kiểm tra an toàn, cấu trúc và bất biến độc lập của macro
+  macro_registry.py       đăng ký macro đã được xác minh theo từng business
   hints.py, prompts.py    gợi ý từ câu hỏi, system prompt, user message, gợi ý sửa lỗi
   sqlexec.py, voting.py   chạy một mẫu SQL, bỏ phiếu và quyết định trả lời
   fewshot.py              ngân hàng ví dụ train và truy xuất

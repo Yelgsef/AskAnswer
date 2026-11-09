@@ -45,6 +45,8 @@ assert SYSTEM_ALT != SYSTEM and "v_orders views (an independent" in SYSTEM_ALT a
 
 NOTES = "Notes:\n-"  # the start of a plain sample with --notes
 
+MACRO_GUIDANCE = "Only call verified business macros listed below, with their documented parameters. Do not force a macro when canonical views or raw tables are more appropriate."
+
 # Vietnamese chat abbreviations (language-level, not shop-specific), glossed next to the question when present
 SLANG = {"hqua": "hôm qua", "hnay": "hôm nay", "hnao": "hôm nào", "bqua": "bữa qua", "dthu": "doanh thu",
          "bnhiu": "bao nhiêu", "bn": "bao nhiêu", "bnh": "bao nhiêu", "sl": "số lượng", "sp": "sản phẩm", "kh": "khách hàng",

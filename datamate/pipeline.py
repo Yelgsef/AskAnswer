@@ -16,9 +16,10 @@ from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 
-from . import debts, fewshot, views
+from . import debts, fewshot, macros, views
 from .hints import DEBT_WORDS, data_span, outside, question_hints
 from .ingest import entity_hits, load_business, norm, profile, sample_text, schema_text
+from .macro_registry import MacroRegistry
 from .prompts import NOTES, SYSTEM, SYSTEM_ALT, chat, repair_hint
 from .sqlexec import execute, parse
 from .submission import merge_shards, write_submission
@@ -52,6 +53,7 @@ class Shop:
     debt: str = ""
     ctx: str = ""
     vinfo: dict = field(default_factory=dict)
+    macro_registry: object = None
 
 
 class Pipeline:
@@ -64,6 +66,7 @@ class Pipeline:
         self.half = a.k // 2
         self.vtexts, self.vchecked, self.vfixed = {}, {}, {}
         self.dchecked, self.dfixed = {}, {}
+        self.view_samples, self.macro_artifacts = {}, {}
         # one log record per question: --log-dir (Docker: /result/logs), else the run's own logs/
         self.log_dir = getattr(a, "log_dir", None) or (a.output / "logs" if getattr(a, "output", None) else None)
         self._calls, self._runs = [], []
@@ -96,8 +99,9 @@ class Pipeline:
         drafted = [b for b in loaded if b not in self.vfixed]  # shops without reused views get fresh drafts
         if a.views != "llm" or not drafted:
             return
-        samples = {b: sample_text(loaded[b][0], loaded[b][1], max_rows=a.view_sample_rows)
-                   for b in drafted} if getattr(a, "view_sample_rows", 0) > 0 else {}
+        self.view_samples = {b: sample_text(loaded[b][0], loaded[b][1], max_rows=a.view_sample_rows)
+                             for b in drafted} if getattr(a, "view_sample_rows", 0) > 0 else {}
+        samples = self.view_samples
 
         def view_round(shops, seed):  # all shops in one batch (GPU stays full)
             vchats = [[{"role": "system", "content": views.VIEW_SYSTEM + "\n\nRULEBOOK:\n" + self.rulebook},
@@ -205,6 +209,32 @@ class Pipeline:
         ctx = "README:\n" + meta["readme"] + "\n\nSCHEMA:\n" + schema_text(shown) + raw_note + ("\n\nCANONICAL VIEWS:\n" + view if view else "") + ("\n\n" + debt if debt else "")
         return Shop(b, db, meta, shown, view, debt, ctx, vinfo)
 
+    def dynamic_macros(self, shop, business, questions, t0):
+        """Plan, validate and register trusted macros once for one business; failures leave the normal SQL path intact."""
+        if not getattr(self.a, "dynamic_macros", False) or not questions:
+            return MacroRegistry()
+        samples = self.view_samples.get(business)
+        if samples is None:
+            samples = sample_text(shop.db, shop.meta, max_rows=max(10, getattr(self.a, "view_sample_rows", 0)))
+            self.view_samples[business] = samples
+        try:
+            registry, artifacts = macros.run(shop.db, shop.meta, shop.meta["readme"], self.rulebook, samples, questions, self.engine, self.a,
+                                             available_layers=(shop.view + "\n\n" + shop.debt).strip())
+        except Exception as e:
+            registry, artifacts = MacroRegistry(), {"enabled": True, "plan_errors": [f"macro stage failed: {str(e)[:400]}"],
+                                                     "registry": {"entries": [], "rejections": []}}
+        self.macro_artifacts[business] = artifacts
+        if getattr(self.a, "output", None):
+            log_dir = self.a.output / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            for kind, value in (("plan", {k: artifacts.get(k) for k in ("plan", "plan_raw", "plan_errors", "context_chars", "seconds")} ),
+                                ("candidates", artifacts.get("candidates", [])),
+                                ("validation", artifacts.get("validation", [])),
+                                ("registry", artifacts.get("registry", registry.as_dict()))):
+                (log_dir / f"_macro_{kind}_{business}.json").write_text(json.dumps(value, ensure_ascii=False, default=str, indent=1), encoding="utf-8")
+        print(f"macros {business}: {len(registry.entries)} verified", flush=True)
+        return registry
+
     def build_chats(self, shop, todo):
         """Per question: values matching it, its hints, whether its period lies outside the data. Then one chat per prompt."""
         a, bank = self.a, self.bank
@@ -213,8 +243,9 @@ class Pipeline:
             q["_periods"] = question_hints(q["question"], q["as_of_date"], shop.db, shop.shown)
             q["_oor"] = outside(q["_periods"], data_span(shop.meta))
         # examples read the canonical views, so a shop without them gets none
-        return [[chat(s, shop.ctx, q, fewshot.block(bank.retrieve(q["question"], shop.name, a.fewshot_k, debt=bool(shop.debt))) if bank and shop.view and j == 1 else "")
-                 for j, s in enumerate(self.systems)] for q in todo]
+        return [[chat(s, shop.ctx + ("\n\n" + shop.macro_registry.context(i) if shop.macro_registry else ""), q,
+                      fewshot.block(bank.retrieve(q["question"], shop.name, a.fewshot_k, debt=bool(shop.debt))) if bank and shop.view and j == 1 else "")
+                 for j, s in enumerate(self.systems)] for i, q in enumerate(todo)]
 
     # ---- sampling ----------------------------------------------------------------------------------------------------
     def _call(self, i, kind, j, text, thinking_mode=False, lora=True):
@@ -351,6 +382,7 @@ class Pipeline:
             tb = time.time()
             shop = self.setup_shop(b, db, meta)
             todo = by_shop[b]
+            shop.macro_registry = self.dynamic_macros(shop, b, todo, t0)
             chats = self.build_chats(shop, todo)
             tg = time.time()
             is_behind = lambda: a.deadline and time.time() - t0 > a.deadline * (len(results) + len(todo)) / max(1, len(qs))
@@ -363,7 +395,8 @@ class Pipeline:
             # drafts made before the loop are shared preparation, like loading the model.
             elapsed_ms = int(round((t_ans - tb) * 1000))
             per_q = (t_ans - tb) / max(1, len(todo))
-            layers = {"views": str(a.output / "logs" / f"_views_{b}.json"), **({"debt": str(a.output / "logs" / f"_debt_{b}.json")} if a.debt_views else {})}
+            layers = {"views": str(a.output / "logs" / f"_views_{b}.json"), **({"debt": str(a.output / "logs" / f"_debt_{b}.json")} if a.debt_views else {}),
+                      **({"macros": str(a.output / "logs" / f"_macro_registry_{b}.json")} if getattr(a, "dynamic_macros", False) else {})}
             for n, (q, (r, ans, conf), ts, ps, es, cs, pool) in enumerate(zip(todo, decisions, texts, preds, errs, chats, pools)):
                 results[q["id"]] = r
                 rec = {"id": q["id"], "business_id": b, "question": q["question"], "final": r, "vote": ans, "conf": conf,
