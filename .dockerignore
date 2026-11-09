@@ -1,0 +1,15 @@
+# Allow-list: inference code, the README, the base model, the adapter, the example bank and the packed training_code
+# (scripts/pack_training_code.py: training code, SFT data, train split, logs, checkpoints, manifest). Never public-test data or runs.
+*
+!datamate/*.py
+!training/requirements.txt
+!assets/fewshot_bank.jsonl
+!scripts/flags.sh
+!docker/predict.sh
+!docker/requirements.txt
+!docker/model_manifest.json
+!docker/README.md
+!models/Qwen3.5-9B
+!adapters/sql_rft_v3
+!build/training_code
+**/__pycache__
